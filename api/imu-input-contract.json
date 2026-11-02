@@ -1,0 +1,207 @@
+{
+  "schema_version": 1,
+  "scope": "Minimum real Linux IIO to stock QVR DSP combined IMU input contract. Static reconstruction only; no device access or DSP calls occurred during this investigation.",
+  "conclusion": "The existing external_sensor_lib path accepts a BOOTTIME/SI/Android-portrait 64-byte combined sample in ring 0, followed by no-buffer FastRPC method 10. It is compatible with start flags=0 for native source 1 outside SimpleViewer. Reproduce its AP transport directly in the Debian bridge; no Android HAL is needed for this input route.",
+  "artifacts": {
+    "service": {
+      "path": "build/xr-openxr-research-r1/stock/system/lib/libqvrservice.so",
+      "sha256": "f8b3b7582fe696c302ce1ab2a026ab13089f390d4011730733ddf395a257bbc7",
+      "bytes": 1510484
+    },
+    "qvr_dsp": {
+      "path": "build/xr-openxr-research-r1/stock/system/lib/rfsa/adsp/libqvr_dsp_driver_skel.so",
+      "sha256": "71022184524650e554cff0067f9e8787a1e88b0f80d3bff163aa9f2fcc462255",
+      "bytes": 139568
+    },
+    "stub": {
+      "path": "build/xr-openxr-research-r1/stock/system/lib/libqvr_cdsp_driver_stub.so",
+      "sha256": "9a8dd90226e9ad93d844cf1030ba9077b0001980d923a21ad53b1b44da259920",
+      "bytes": 26084
+    },
+    "external_sensor_sdk_header": {
+      "path": "/workspace/vr/vr/vr700_openxr/sdk/snapdragon/SnapdragonXR-SDK-binary.rel.4.0.6/3rdParty/qvr/inc/QVRServiceExternalSensors.h",
+      "sha256": "6fc89ae5acc3faa2c352c4a0c5520a00491884365e5f4bac1b8fa28f275ae273",
+      "bytes": 5289
+    }
+  },
+  "stock_service_route": {
+    "configuration_key": "external_sensor_lib",
+    "configuration_storage": "QVRServiceConfiguration string at +0x18",
+    "enabled_condition": "A nonempty library path selects QVRServiceSensorsExternal in CreateModules, provided service source +0x1984==1. Empty selects native sensors if service+0xb8==0; otherwise remote SimpleViewer sensors.",
+    "plugin_abi": "dlopen(path) -> dlsym(getInstance) -> qvr_external_sensors_t {api_version=1,ops}; Init(); Start(DataReadyCb,HandleErrorCb,context); Stop() must cease callbacks.",
+    "callback_abi": {
+      "type_offset": 0,
+      "type_values": {
+        "ACCEL": 0,
+        "GYRO": 1
+      },
+      "timestamp_u64_offset": 8,
+      "xyz_f32_offsets": [
+        16,
+        20,
+        24
+      ],
+      "timestamp_domain": "Android CLOCK_BOOTTIME nanoseconds",
+      "gyro_units": "rad/s",
+      "accel_units": "m/s^2",
+      "axes": "Android portrait orientation"
+    },
+    "layout_selection": "BasicInit sets RingBufferLayoutSetup(true) when external_sensor_lib is nonempty, even for source=1 and service+0xb8=0. Tracker::SetRingBufferLayout does not register raw_accel ring5 in this branch.",
+    "debian_equivalent": "Direct bridge may implement the proven ring writer and notification chain without loading an Android plugin. external_sensor_lib is an AP service selection, not an additional field in qvr_dsp_driver_start XML.",
+    "source_gate": "DataReadyCb accepts real callbacks only when service source +0x1984 is 1."
+  },
+  "combined_ring": {
+    "id": 0,
+    "name": "raw_gyro slot carrying combined external sensor data",
+    "allocation_bytes": 4096,
+    "descriptor_words": [
+      "real_dma_buf_fd",
+      4096,
+      512,
+      0,
+      64,
+      8,
+      2
+    ],
+    "descriptor_note": "Only seven words are transmitted. Layout is eight 64-byte slots at offset0, then a 64-byte index area at offset512. type_tag/struct_id=2. These are the stock external row at service ELF0x136464, NOT the native direct-report record format.",
+    "index": {
+      "offset": 512,
+      "type": "u32",
+      "meaning": "Index of the most recently completed slot, not next-write cursor or sample count",
+      "first_published": 0,
+      "wrap_count": 8
+    },
+    "record": [
+      {
+        "offset": 0,
+        "bytes": 8,
+        "type": "u64",
+        "meaning": "gyro sample BOOTTIME ns"
+      },
+      {
+        "offset": 8,
+        "bytes": 8,
+        "type": "u64",
+        "meaning": "latest cached real accel sample BOOTTIME ns"
+      },
+      {
+        "offset": 16,
+        "bytes": 12,
+        "type": "3*f32",
+        "meaning": "gyro xyz in rad/s"
+      },
+      {
+        "offset": 28,
+        "bytes": 12,
+        "type": "3*f32",
+        "meaning": "latest cached real accel xyz in m/s^2"
+      },
+      {
+        "offset": 40,
+        "bytes": 20,
+        "meaning": "stock external writer zeros these bytes; DSP combined consumer interprets the first 8 as optional magnetometer time and next12 as magnetometer vector; keep zero without a real magnetometer input"
+      },
+      {
+        "offset": 60,
+        "bytes": 4,
+        "meaning": "not written by the stock callback; initialize allocation/record to zero"
+      }
+    ],
+    "producer_sequence": [
+      "Cache each real accel timestamp and xyz; do not publish or notify for accel alone.",
+      "For each real gyro sample, finish one record with that gyro and cached latest accel. A Debian adapter should wait for its first real accel rather than inventing an initial measurement.",
+      "Complete all record writes and make them visible to the DSP according to DMA-buffer/cache semantics.",
+      "Publish the completed slot index in the first u32 of the index area; ensure index visibility follows record visibility.",
+      "Call method10 and wait for it to complete before publishing the next gyro slot.",
+      "Advance private next-write slot modulo8."
+    ],
+    "consumer_behavior": "Method10 consumes exactly the currently published slot, not all slots since the previous call. Do not publish a batch then notify once, and do not send a callback with no new real gyro.",
+    "cpu_cache_gate": "The stock DSP invalidates its index and record cache lines before reading. The mainline bridge must use the actual mapped DMA-buffer coherency contract; where CPU mappings are cached, pair CPU access/cache synchronization and ordering before notify. This investigation did not measure AP-to-DSP cache visibility.",
+    "original_writer_evidence": "QVRServiceSensorsExternal::WriteSensorData ELF0xcf898; decoder/consumer qvr DSP ELF0x87b0(param=0)."
+  },
+  "notification": {
+    "function": "qvr_dsp_driver_external_sensor_data_ready_notification",
+    "scalar": "0x0a000000",
+    "input_buffers": 0,
+    "output_buffers": 0,
+    "stock_chain": [
+      "WriteSensorData",
+      "QVRService::ExternalSensorDataReadyNotification: GetModule(4)",
+      "QVRServiceTracker::ExternalSensorDataReadyNotification: requires tracker started flag this+0x2d",
+      "QVRServiceDspWrapper::ToggleDataReadyNotification: bound function at wrapper+0x34",
+      "AP stub ELF0x3204 invokes method10",
+      "DSP function ELF0x87a4 invokes FUN_ELF0x87b0(0)"
+    ],
+    "dsp_chain": [
+      "Require valid mapped gyro ring0 and pose ring1.",
+      "Invalidate/read index64B; invalidate/copy indexed64B record.",
+      "Require mapped DL prediction ring29 and a pose destination.",
+      "Dispatch by DSP tracking mode: mode1 -> onSensorData_6Dof.",
+      "onSensorData_6Dof -> tracker_helper_6dof_imu_update -> TrackerWrapperIMUUpdate with gyro and accel records.",
+      "Publish pose and DL prediction outputs, then run forward prediction."
+    ],
+    "success_limit": "The exported notification returns0 after the consumer call and does not propagate tracking quality or every internal error. A successful RPC is not evidence of a valid 6DoF pose; inspect real output state/timestamps/quality.",
+    "time_axis_unit_conversion": "The param0 consumer copies the64B record and does not apply the SimpleViewer integer scaling/axis conversion or a QTimer offset. Supply required physical quantities and coordinates before publication."
+  },
+  "start_compatibility": {
+    "flags": 0,
+    "service_source": 1,
+    "simpleviewer": false,
+    "dsp_tracking_mode": 1,
+    "orientation": "Stock still sets native sensor_orientation from trinity, but combined method10(param0) does not use that transform to repair producer axes. Input must already satisfy the external SDK frame.",
+    "skip_raw_accel_ring5": true,
+    "other_rings": "Retain ring1 pose, ring29 DL prediction, ring8 predicted pose, ring7 health, and the other stock tracker setup described in start-contract.json.",
+    "full_start_parameters": "xr-desktop/system/tracking/head/start-contract.json",
+    "flags_1_is_different": "SimpleViewer flag1 drives QDI receiver -> combined consumer(param1), which decodes/scales a different128-byte raw input area. Do not enable it for this64-byte external plugin path.",
+    "flags_4_is_different": "Stock canned-source flag4 suppresses native QDI processing. It is not required by the proven external plugin source1 path.",
+    "native_callback_separation": "Do not also register/start the native Android direct channels while using combined ring0; the native receiver interprets another memory format."
+  },
+  "clock_contract": {
+    "imu": "Use CLOCK_BOOTTIME ns for both gyro and accel, preserving separate real sample timestamps.",
+    "camera": "External-plugin equivalent path leaves camera capture timestamps in BOOTTIME as well. VRTrackerF adds AndroidToQTimeDiff only when external_sensor_lib is empty and service+0xb8==0.",
+    "external_GetDiffQtimerAndroid": 0,
+    "no_receive_timestamp_substitution": "Read the actual timestamp in the IIO scan record; do not replace it with poll/read completion time.",
+    "existing_reader": {
+      "path": "xr-desktop/system/a081_device.c",
+      "sha256": "977a5bdd44e988a66d0ad62099f1f421f40809c989f528fa31eb06986ea658e8",
+      "bytes": 11477
+    },
+    "existing_reader_difference": "Current open_stream explicitly requests current_timestamp_clock=monotonic. A direct reuse must request/read back boottime on both exclusive streams, with buffers disabled during clock changes, and confirm the selected driver timestamps honor that clock.",
+    "qtimer_rpc": "qvr_dsp_driver_get_current_qtimer method9 returns qurt_sysclock_get_hw_ticks directly. It is raw hardware ticks, not ns. This external path does not need that value.",
+    "suspend": "Do not assume monotonic==boottime after suspend. Prefer a driver-supplied boottime scan timestamp over an unverified offset conversion."
+  },
+  "minimal_real_iio_adapter": {
+    "existing_scan_shape": {
+      "bytes": 24,
+      "xyz": "int32[3] at offset0",
+      "padding_bytes": 4,
+      "timestamp": "int64 ns at offset16"
+    },
+    "shape_gate": "Re-read scan_elements indices and types; existing adapter expects xyz le:s32/32>>0 and timestamp le:s64/64>>0. This is a current source expectation, not a new on-device observation.",
+    "units": "Multiply each raw xyz component by the exposed in_accel_scale or in_anglvel_scale exactly once. Record both scale values. Do not substitute synthetic IMU data.",
+    "axes": "Confirm existing SEE/IIO output-to-Android-portrait orientation before start; apply any required measured transform in the AP adapter, once. The identity trinity transform alone does not prove Linux IIO equivalence.",
+    "calibration": "Pass the stock device_calibration.xml to the stock tracker; do not duplicate its bias/extrinsic processing in the transport adapter.",
+    "ownership": "Acquire exclusive real sensor buffers, preserve changed attributes and restore after stop. Configure BOOTTIME before enabling buffers. No device operations were performed by this task.",
+    "acceptance": "Actual samples with increasing BOOTTIME times -> visible DMA record/index -> successful notify -> changing stock pose timestamps plus valid tracking state. Positional tracking additionally requires real calibrated camera input."
+  },
+  "native_see_assessment": {
+    "established_path": "Stock QVRServiceSensorsNative::Init gets gyro ring0 and accel ring5, registers two SharedMemInfo direct channels through Android HIDL sensors service; ConfigDirectReportStart calls the HAL direct-report entry with rate level3. DSP then consumes those buffers on QuRT /dev/vr callback.",
+    "dsp_receiver": "ELF0xc060 waits using qurt_qdi_qhi3(0,handle,0x102); start flags0 selects native direct-report processing, flag1 selects128B remote input, flag4 skips this processing.",
+    "qdi_initialization": "DSP constructor ELF0x7434 opens QuRT /dev/vr via qurt_qdi_qhi4(0,4,2,\"/dev/vr\"), initializes with method0x100, allocates16KiB thread stack, and creates adsp_imu/sensor_data_ready_interrupt_receiver. This initialization occurs even when the AP intends to use method10.",
+    "device_namespace": "/dev/vr here is a DSP QuRT QDI endpoint. This is not evidence that a Linux /dev/vr node should be created.",
+    "conclusion": "No observed QVR call in this recovery directly subscribes to SEE/QMI from CDSP and independently starts sensor acquisition. Existing native route depends on Android HAL/direct channels and a firmware notification path. Reusing real Debian IIO via the explicit external64B method10 route is the supported contract recovered here.",
+    "scope_limit": "This is not a claim that every firmware component lacks a SEE API; no whole-firmware audit was performed."
+  },
+  "remaining_gates": [
+    "Root must resolve real CDSP module initialization and mapping first.",
+    "Prove mainline DMA cache visibility for the mapped buffer.",
+    "Confirm real IIO axes and BOOTTIME timestamps; no sensor sample was read in this investigation.",
+    "Start with real four-camera data for positional tracking; successful IMU-only notification cannot establish6DoF."
+  ],
+  "evidence_notes": [
+    "For these REA imports, Ghidra addresses equal ELF virtual addresses +0x10000.",
+    "Small QVR DSP library only; the large tracker binary was not reopened.",
+    "Hexagon pseudocode has inferred signatures and removed-block warnings. Key conclusions are supported by AP producer, DSP consumer, explicit debug assertions and shipped SDK ABI together.",
+    "The zero initialization, first-real-accel gate and synchronous per-gyro adapter prescription are implementation choices preserving real input; distinguish them from exact stock callback behavior."
+  ]
+}

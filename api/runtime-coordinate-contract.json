@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "status": "source_contract_narrowed_runtime_recenter_implemented_physical_mapping_pending",
+  "scope": "The extracted A081 configuration is device-specific evidence. SDK4.0.6 source explains reference transformations but its equivalence to the running A081 SXR binary is not established.",
+  "sources": {
+    "a081_stock_config": {
+      "path": "build/xr-openxr-research-r1/stock/system/etc/qvr/svrapi_config.txt",
+      "sha256": "00dfabfd663dfa46a00d78dab2b134be89e23410a28a7f49da34549529151145"
+    },
+    "qvr_types": {
+      "path": "/workspace/vr/vr/vr700_openxr/sdk/snapdragon/SnapdragonXR-SDK-source.rel.4.0.6/3rdparty/qvr/inc/QVRTypes.h",
+      "sha256": "620f1869d92470ad9339b819760ff8a9859b611175e3e95e80c4a638c00d22d9"
+    },
+    "sdk_predictive": {
+      "path": "/workspace/vr/vr/vr700_openxr/sdk/snapdragon/SnapdragonXR-SDK-source.rel.4.0.6/sxrApi/private/svrApiPredictiveSensor.cpp",
+      "sha256": "88438f921272904de15b5d563e88d33ffc49edd5df4b79a419288fd69857925c"
+    },
+    "sdk_core": {
+      "path": "/workspace/vr/vr/vr700_openxr/sdk/snapdragon/SnapdragonXR-SDK-source.rel.4.0.6/sxrApi/private/svrApiCore.cpp",
+      "sha256": "3b1b823b583a784870c1c280248701dd57285b2ff2e649c831b6abd26d07e6d8"
+    },
+    "sdk_java": {
+      "path": "/workspace/vr/vr/vr700_openxr/sdk/snapdragon/SnapdragonXR-SDK-source.rel.4.0.6/sxrApi/private/java/com/qualcomm/sxrapi/SxrApi.java",
+      "sha256": "e032d1193f55f618e000dc910120752b8ecf909db579ee6cdddadbc382eb036d"
+    },
+    "sdk_eye_views": {
+      "path": "/workspace/vr/vr/vr700_openxr/sdk/snapdragon/SnapdragonXR-SDK-source.rel.4.0.6/framework/svrUtil.cpp",
+      "sha256": "ae52789ac601c04dd963bec470eaed2958373f41a0dd2ee29cc572e54726036d"
+    },
+    "monado_ctl": {
+      "path": "build/xr-tracking-r1/live-stream/runtime/monado/src/xrt/targets/ctl/main.c",
+      "sha256": "30bb2237adf0081415b2e27e6fbc3fc34963aff442c16c5ffcd37e7aa003951f"
+    },
+    "monado_spaces": {
+      "path": "build/xr-tracking-r1/live-stream/runtime/monado/src/xrt/base/b_space_overseer.c",
+      "sha256": "3fd296c5c7395dd5ad60fa8db9ba2f0f202adc15b4baf84dbcdafa30fa8cc3e7"
+    },
+    "monado_ipc": {
+      "path": "build/xr-tracking-r1/live-stream/runtime/monado/src/xrt/ipc/client/ipc_client_connection.c",
+      "sha256": "c06249317e25ae8eff5eeb5bdb235c8c5f9f7a012d7422a17f990006219bfeab"
+    }
+  },
+  "raw_qvr": {
+    "rotation_order": "xyzw",
+    "coordinate_documentation": "Android Portrait; SDK comment describes x up, y left, z toward user",
+    "timestamp_current_external_mode": "Exact submitted gyro CLOCK_BOOTTIME ns; IPC sample_monotonic_ns is the already bounded conversion when pose timestamp equals gyro timestamp. No extra native QTimer offset.",
+    "quality": "0 bad /1 good in positional mode; TRACKING bit4 alone does not establish pose validity",
+    "quality_source_lines": [
+      64,
+      105
+    ],
+    "current_transport": "168-byte v1 unchanged; raw pose is diagnostic and has no Xr validity flag"
+  },
+  "a081_parameters": {
+    "source": "a081_stock_config",
+    "sensor_orientation_correction_degrees_xyz": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "sensor_head_offset_meters_xyz": [
+      -0.057022,
+      0.032557,
+      0.068516
+    ],
+    "head_offset_source_description": "Offset from center of eyes to IMU center; not a directly applicable Monado pose offset without matching stock coordinate semantics.",
+    "min_pose_quality_config": 0.2,
+    "observed_quality_kind": "QVR header binary0/1; current actual records0. For future positive acceptance require1, do not weaken the existing gate to arbitrary fractional values.",
+    "parameter_lines": [
+      174,
+      175,
+      176,
+      179,
+      180,
+      181,
+      185
+    ]
+  },
+  "sdk_reference_pipeline": [
+    {
+      "operation": "With prediction delay0, use raw quaternion/translation; prediction is a separate path.",
+      "source": "sdk_predictive",
+      "lines": [
+        245,
+        298
+      ]
+    },
+    {
+      "operation": "Post-multiply sensor correction rotations in X thenY thenZ order; A081 config values above are allzero.",
+      "source": "sdk_predictive",
+      "lines": [
+        301,
+        341
+      ]
+    },
+    {
+      "operation": "Convert quaternion to a matrix, transpose for the stated memory convention, populate the4x4 input with negated translation, then apply the display-orientation-specific conjugation. Keep matrix storage conventions explicit.",
+      "source": "sdk_predictive",
+      "lines": [
+        348,
+        473
+      ]
+    },
+    {
+      "operation": "0/90 use the left correction branch;180/270 use right correction plus an extra180degree rotation. The270 branch also distinguishes pre24 Android from24+. The actual A081 activity rotation is not in current captures.",
+      "source": "sdk_predictive",
+      "lines": [
+        417,
+        473
+      ]
+    },
+    {
+      "operation": "In positional mode only, add baseOffset - rotatedOffset using configured eye-to-IMU offset and recenter rotation.",
+      "source": "sdk_predictive",
+      "lines": [
+        484,
+        501
+      ]
+    },
+    {
+      "operation": "Apply recenter rotation/position and native QTimer adjustment in the SDK consumer; current external-IMU BOOTTIME route must not repeat that offset.",
+      "source": "sdk_core",
+      "lines": [
+        4325,
+        4364
+      ]
+    },
+    {
+      "operation": "SDK view builder consumes the returned quaternion directly as a view rotation; explicit camera-to-world helpers negate position and conjugate quaternion. This contradicts treating SXR-returned pose as an unqualified Monado device pose.",
+      "source": "sdk_eye_views",
+      "lines": [
+        153,
+        169
+      ]
+    },
+    {
+      "operation": "displayOrientation comes from the active Android Display.getRotation value. The default270 initialization is overwritten by JNI, so it is not A081 evidence.",
+      "source": "sdk_core",
+      "lines": [
+        1196,
+        1205
+      ]
+    }
+  ],
+  "unclosed_parameters": [
+    "Actual A081 stock activity displayOrientation; panel pixel dimensions or current Monado viewport rotation are not a substitute.",
+    "Equivalence of the selected SDK reference transform to the shipped A081 SXR consumer.",
+    "Physical axis signs and handedness, world-to-device versus device-to-world transform, tracker/IMU/eye origin, and measured translation scale under real movement.",
+    "Favorable-scene positive raw quality1 with synchronized camera inputs and paired stock/public pose values."
+  ],
+  "implementation_decision": {
+    "raw_pose_promoted_to_openxr": false,
+    "position_tracking_supported": false,
+    "wire_changed": false,
+    "sensor_transform_changed": false,
+    "original_quality0_scene_retried": false,
+    "sensor_camera_clock_gates_unchanged": true
+  },
+  "runtime_recenter": {
+    "script": "xr-desktop/system/tracking/head/recenter-native.sh",
+    "desktop_template": "xr-desktop/system/tracking/head/recenter-native.desktop.in",
+    "installed_command": "mix-xr-recenter",
+    "target": "Same-prefix monado-ctl -c through inherited XDG_RUNTIME_DIR/monado_comp_ipc",
+    "operation": "Existing Monado LOCAL and LOCAL_FLOOR yaw/ground-plane recenter; keeps y offset and sends reference-space-change events. Runtime requires an available valid relation.",
+    "source": "monado_spaces",
+    "lines": [
+      794,
+      907
+    ],
+    "view_space_desktop_moves": false,
+    "resets_dsp_or_imu": false,
+    "adds_positional_tracking": false,
+    "starts_runtime": false,
+    "device_execution": false
+  },
+  "next_acceptance": {
+    "hardware_required": "New explicit ready after device becomes visible; use the same authorized normal desktop session, not an extra display lifecycle.",
+    "recenter": "After actual orientation warmup, invoke same-prefix mix-xr-recenter once within current XDG_RUNTIME_DIR; preserve return code/reference-space events and LOCAL before/after. VIEW-fixed desktop remaining in place is expected. Keep normal first-exit buffer/fd capture.",
+    "positive_6dof": "Only after the exact remaining mapping parameters and actual positive quality/scale/motion evidence above are available."
+  }
+}

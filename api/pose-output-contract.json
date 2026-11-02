@@ -1,0 +1,429 @@
+{
+  "schema_version": 1,
+  "scope": "A081 raw QVR pose ring 1 and DL prediction ring 29: actual small DSP producer and shipped AP consumer, plus identified public SDK references. Offline only.",
+  "status": {
+    "pose_layout": "confirmed for the stock 6DoF IMU producer",
+    "dl_layout": "offsets/counts/source timestamp confirmed; coefficient variable names, basis and time units unresolved",
+    "publication": "completed-slot index and cache-call order confirmed; no seqlock or monotonic publication sequence found",
+    "validity": "raw vendor state/quality meanings confirmed; OpenXR validity and physical coordinate mapping are not established",
+    "parser": "Immutable record/full-snapshot decoder; static valid=false. Stopped capture and serialized external-notification capture accepted on actual A081; original position/coordinate validity remains unverified."
+  },
+  "artifacts": [
+    {
+      "path": "build/xr-openxr-research-r1/stock/system/lib/rfsa/adsp/libqvr_dsp_driver_skel.so",
+      "sha256": "71022184524650e554cff0067f9e8787a1e88b0f80d3bff163aa9f2fcc462255",
+      "bytes": 139568
+    },
+    {
+      "path": "build/xr-tracking-r1/stock/system/system/lib/libqvrservice_client.qti.0.so",
+      "sha256": "e9700a2a3b18e7689a7c32b1dad82085c50e0ba2d14fea1b47661223fe270276",
+      "bytes": 140988
+    },
+    {
+      "path": "/workspace/vr/vr/sxr_sdk_4.0.6/SnapdragonXR-SDK-source.rel.4.0.6/3rdparty/qvr/inc/QVRTypes.h",
+      "sha256": "620f1869d92470ad9339b819760ff8a9859b611175e3e95e80c4a638c00d22d9",
+      "bytes": 27349
+    },
+    {
+      "path": "/workspace/vr/vr/sxr_sdk_4.0.6/SnapdragonXR-SDK-source.rel.4.0.6/sxrApi/private/svrApiPredictiveSensor.cpp",
+      "sha256": "88438f921272904de15b5d563e88d33ffc49edd5df4b79a419288fd69857925c",
+      "bytes": 44824
+    }
+  ],
+  "rings": {
+    "pose": {
+      "internal_ring_id": 1,
+      "block_bytes": 16384,
+      "header_bytes": 64,
+      "index_offset": 0,
+      "index_type": "little-endian u32",
+      "slot_offset": 64,
+      "slot_bytes": 192,
+      "count": 80,
+      "required_snapshot_bytes": 15424,
+      "type_tag": 0
+    },
+    "dl_prediction": {
+      "internal_ring_id": 29,
+      "block_bytes": 12288,
+      "header_bytes": 64,
+      "index_offset": 0,
+      "index_type": "little-endian u32",
+      "slot_offset": 64,
+      "slot_bytes": 128,
+      "count": 80,
+      "required_snapshot_bytes": 10304,
+      "type_tag": 15
+    },
+    "layout_source": "build/xr-rea-analysis/head/service-layout-constants.json; xr-desktop/system/tracking/head/imu-input-contract.json",
+    "header_remainder": "Only index at +0 is interpreted. The remaining 60 bytes are not assumed to contain a generation, lock, or validity bit."
+  },
+  "pose_fields": [
+    {
+      "offset": 0,
+      "wire_type": "f32[4]",
+      "name": "rotation_xyzw",
+      "meaning": "DSP util_rotation_to_quat outputs x,y,z,w; SDK confirms this order."
+    },
+    {
+      "offset": 16,
+      "wire_type": "f32[3]",
+      "name": "translation",
+      "meaning": "Copied from tracker result +0x24; no scale conversion in this producer."
+    },
+    {
+      "offset": 28,
+      "wire_type": "u32",
+      "name": "reserved",
+      "meaning": "Zeroed in this 6DoF IMU path; no meaning recovered."
+    },
+    {
+      "offset": 32,
+      "wire_type": "u64",
+      "name": "timestamp_ns",
+      "meaning": "Exact gyro source timestamp passed to the helper."
+    },
+    {
+      "offset": 40,
+      "wire_type": "u64",
+      "name": "reserved",
+      "meaning": "Zeroed in this 6DoF IMU path."
+    },
+    {
+      "offset": 48,
+      "wire_type": "f32[3]",
+      "name": "angular_s",
+      "meaning": "Stock angular prediction smoothing coefficients."
+    },
+    {
+      "offset": 60,
+      "wire_type": "u32",
+      "name": "reserved",
+      "meaning": "Not a sequence counter."
+    },
+    {
+      "offset": 64,
+      "wire_type": "f32[3]",
+      "name": "angular_b",
+      "meaning": "Stock angular prediction coefficients."
+    },
+    {
+      "offset": 76,
+      "wire_type": "u32",
+      "name": "reserved",
+      "meaning": "Not a sequence counter."
+    },
+    {
+      "offset": 80,
+      "wire_type": "f32[3]",
+      "name": "angular_bdt",
+      "meaning": "Stock angular prediction coefficients."
+    },
+    {
+      "offset": 92,
+      "wire_type": "u32",
+      "name": "reserved",
+      "meaning": "Not a sequence counter."
+    },
+    {
+      "offset": 96,
+      "wire_type": "f32[3]",
+      "name": "angular_bdt2",
+      "meaning": "Stock angular prediction coefficients."
+    },
+    {
+      "offset": 108,
+      "wire_type": "u16",
+      "name": "tracking_state",
+      "meaning": "1 relocating; 2 suspended; 4 tracking; 8 fatal; 0 uninitialized."
+    },
+    {
+      "offset": 110,
+      "wire_type": "u16",
+      "name": "warning_flags",
+      "meaning": "Copied from the low 16 bits of tracker result +0x38."
+    },
+    {
+      "offset": 112,
+      "wire_type": "u32",
+      "name": "magnetometer_flags_raw",
+      "meaning": "SDK rotational-magnetometer flags; zeroed by this 6DoF path."
+    },
+    {
+      "offset": 116,
+      "wire_type": "f32",
+      "name": "pose_quality",
+      "meaning": "Copied from tracker result +0x30. SDK defines 0 bad / 1 good."
+    },
+    {
+      "offset": 120,
+      "wire_type": "f32",
+      "name": "sensor_quality",
+      "meaning": "Explicitly set to zero; SDK marks deprecated."
+    },
+    {
+      "offset": 124,
+      "wire_type": "f32",
+      "name": "camera_quality",
+      "meaning": "Explicitly set to zero; SDK marks deprecated."
+    },
+    {
+      "offset": 128,
+      "wire_type": "f32[3]",
+      "name": "translation_s",
+      "meaning": "Stock translation smoothing coefficients."
+    },
+    {
+      "offset": 140,
+      "wire_type": "u32",
+      "name": "reserved",
+      "meaning": "Zeroed in this 6DoF IMU path."
+    },
+    {
+      "offset": 144,
+      "wire_type": "f32[3]",
+      "name": "translation_b",
+      "meaning": "Stock translation prediction coefficients."
+    },
+    {
+      "offset": 156,
+      "wire_type": "u32",
+      "name": "reserved",
+      "meaning": "Zeroed in this 6DoF IMU path."
+    },
+    {
+      "offset": 160,
+      "wire_type": "u8[32]",
+      "name": "reserved_tail",
+      "meaning": "Zeroed in this path; no additional validity/sequence fields established."
+    }
+  ],
+  "pose_writer": {
+    "on_sensor": "onSensorData_6Dof calls tracker_helper_prediction_on_sensor_data before the tracker update. That helper memset clears all 192 bytes and writes the angular prediction fields after its history has initialized.",
+    "update": "tracker_helper_6dof_imu_update ELF0xe3f8 / REA0x1e3f8 calls TrackerWrapperIMUUpdate with paired sensor records. It requires RPC return0 and tracker success word1 before writing/publishing output.",
+    "transform": "FUN_0001e324 / ELF0xe324 calls util_rotation_to_quat, copies tracker translation, stores the gyro timestamp, quality, state and warnings. LLVM confirms the argument/register and output offsets.",
+    "fixed_override": "The transform has a separate fixed-pose override when trace state +0x10 is nonzero. The ordinary path copies tracker translation. The parser does not enable or reconstruct that override.",
+    "quaternion": "util_rotation_to_quat ELF0x10410 / REA0x20410 uses the row-major 3x3 matrix formula: for positive trace, x=(m21-m12)/S, y=(m02-m20)/S, z=(m10-m01)/S, w=S/4. Other branches preserve xyzw ordering.",
+    "translation_prediction": "tracker_helper_translation_prediction_on_sensor_data ELF0x10090 writes +128/+132/+136 and +144/+148/+152 after history initialization. Those coefficients may remain zero on initial records; zero coefficients do not diagnose tracking failure."
+  },
+  "dl_fields": [
+    {
+      "offset": 0,
+      "wire_type": "f32[6]",
+      "name": "coefficient_group_0"
+    },
+    {
+      "offset": 24,
+      "wire_type": "f32[6]",
+      "name": "coefficient_group_1"
+    },
+    {
+      "offset": 48,
+      "wire_type": "f32[6]",
+      "name": "coefficient_group_2"
+    },
+    {
+      "offset": 72,
+      "wire_type": "f32[6]",
+      "name": "coefficient_group_3"
+    },
+    {
+      "offset": 96,
+      "wire_type": "u8[4]",
+      "name": "coefficient_counts"
+    },
+    {
+      "offset": 100,
+      "wire_type": "u8[4]",
+      "name": "uninterpreted_padding"
+    },
+    {
+      "offset": 104,
+      "wire_type": "u64",
+      "name": "timestamp_ns"
+    },
+    {
+      "offset": 112,
+      "wire_type": "u8",
+      "name": "producer_marker"
+    },
+    {
+      "offset": 113,
+      "wire_type": "u8[15]",
+      "name": "uninterpreted_tail"
+    }
+  ],
+  "dl_semantics": {
+    "producer": "The successful 6DoF helper copies 24 floats from tracker result +60..155 into four groups at slot +0/+24/+48/+72; stores 0x06060606 at +96, source gyro timestamp at +104, and byte1 at +112.",
+    "consumer": "QXRDeviceTracker::SetEqual ELF0x17c20 / REA0x27c20 exposes four coefficient pointers, four individual count-byte pointers, and a pointer to timestamp +104. It labels the output structure 0x5154490e; it does not use marker +112 as pose validity.",
+    "not_pose": "Do not reinterpret the first four floats as a quaternion or treat group order as x/y/z/w. The variable meanings, polynomial basis, prediction time units, and numerical application remain unresolved.",
+    "marker": "The +112 byte is written after tracker call success, with no pose_quality or tracking_state check. It is therefore not sufficient for position/orientation validity.",
+    "padding": "The observed writer does not establish meanings or fresh values for +100..103 and +113..127."
+  },
+  "publication": {
+    "function": "FUN_00018660 / ELF0x8660",
+    "steps": [
+      "Compute slot = mapped_base + descriptor.ring_offset + current_slot * descriptor.element_size.",
+      "Call qurt_mem_cache_clean(slot, element_size, 0, 1).",
+      "Store current_slot as one 32-bit word at mapped_base + descriptor.index_offset.",
+      "Call qurt_mem_cache_clean(header_address, 64, 0, 1).",
+      "Return next_slot = current_slot+1, wrapping to0 at descriptor.count."
+    ],
+    "index_meaning": "The header is the most recently completed slot, not the next write slot and not a sample counter. For these rings its range is0..79.",
+    "paired_order": "The external combined-IMU consumer uses the same current slot for pose and DL. On successful onSensorData it publishes DL first, then pose, and advances the shared slot using the pose publisher return value. Their separate headers are not one atomic transaction.",
+    "failure_behavior": "A failed tracker update does not execute the normal publish calls. It may already have changed/cleared the next slot. Its bytes must not be selected by scanning for arbitrary changed data.",
+    "ap_reader": "QVRServiceClientImpl::GetHeadTrackingData ELF0x10d48 loads the current index, checks0<=index<count, returns a pointer to slot index*192 and executes an ARM DMB. It does not copy a slot or validate a generation. The historical head/DL readers choose records by timestamp and also return pointers.",
+    "consistency_limit": "Equal header values before and after a copy are not a seqlock proof: after80 publications the index repeats, and a copy can overlap a producer write. A memory fence also does not replace DMA cache synchronization.",
+    "supported_capture": "For this reference, stop input producers, finish pending synchronous notifications, obtain successful stock stop, then use the existing DMA CPU-read synchronization to capture both rings before deinit/unmap. Decode immutable copies. This matches the parent bounded IMU experiment; it is not a new concurrently running reader protocol.",
+    "pair_diagnostics": "Compare pose/DL published_index and timestamp_ns in the quiescent snapshots. Equality supports pairing; it is not a pose-validity flag.",
+    "initialization": "An index outside0..79 is rejected. A zero-filled allocation has index0 and timestamp0; layout decoding can succeed without any output publication.",
+    "candidate_rpc_boundary_capture": {
+      "contract": "xr-desktop/system/tracking/live-stream-contract.json",
+      "device_verified": true,
+      "scope": "Only current external64B source; single QVR caller; native Android direct channels are not registered. Exact method10 direct call and publisher recovered in qvr_bridge.cpp and pose/imu contracts. Real acceptance:2596+2600 associated live records; final80 from each run match stopped ring bits. This does not establish arbitrary concurrent DSP writer safety.",
+      "consistency_limit": "Repeated index/copy equality is a diagnostic, not a seqlock or proof for arbitrary concurrent DSP writers. Timestamp equality is an association check, not tracking validity."
+    }
+  },
+  "state_and_quality": {
+    "mapping": [
+      {
+        "tracker_state": 0,
+        "pose_mask": 0,
+        "label": "UNINITIALIZED"
+      },
+      {
+        "tracker_state": 1,
+        "pose_mask": 1,
+        "label": "RELOCATING"
+      },
+      {
+        "tracker_state": 2,
+        "pose_mask": 2,
+        "label": "SUSPENDED"
+      },
+      {
+        "tracker_state": 3,
+        "pose_mask": 4,
+        "label": "TRACKING"
+      },
+      {
+        "tracker_state": 4,
+        "pose_mask": 8,
+        "label": "FATAL_ERROR"
+      }
+    ],
+    "unknown_states": "The producer maps other tracker state values to0. The public field is a bitmask; preserve unexpected combinations/reserved bits rather than inventing meanings.",
+    "warning_bits": {
+      "0": "LOW_FEATURE_COUNT_ERROR",
+      "1": "LOW_LIGHT_ERROR",
+      "2": "BRIGHT_LIGHT_ERROR",
+      "3": "STEREO_CAMERA_CALIBRATION_ERROR",
+      "4": "TIMESTAMP_ERROR",
+      "5": "CONFIG_FILE_ERROR",
+      "6": "CALIBRATION_FILE_ERROR",
+      "7": "EVA_ERROR",
+      "8": "EVA_FATAL",
+      "9-15": "reserved"
+    },
+    "warning_qualification": "SDK QVRTypes.h says warning meanings apply when pose_quality is0. The decoder preserves raw bits regardless.",
+    "quality": "SDK defines pose_quality as0.0 bad /1.0 good in positional tracking; the A081 producer copies it unchanged. The SDK SXR consumer clears positional tracking when quality is below its configured threshold and separately rejects the all-zero quaternion.",
+    "limits": [
+      "RPC success, a nonzero timestamp, changed ring bytes, nonzero quaternion, or DL marker1 alone does not establish valid visual6DoF.",
+      "Tracking-state/quality report vendor status. They do not independently establish a physically correct coordinate transform, translation scale, recentness, or camera-fed localization.",
+      "The pure parser always exposes valid=false. It does not set any OpenXR location/velocity valid or tracked flags."
+    ],
+    "necessary_quality_gate": "For any future positional-validity implementation, pose_quality==1.0 is a necessary vendor-quality gate, never sufficient by itself. pose_quality==0 must keep positional validity false even when tracking_state==4. The current parser deliberately keeps all validity false."
+  },
+  "coordinates_and_time": {
+    "binary_confirmed": "Quaternion order xyzw; translation copy is unscaled in this QVR producer. The raw stock client returns this slot without a coordinate transform.",
+    "sdk_reference": "QVRTypes.h documents Android Portrait coordinates. svrApiPredictiveSensor.cpp describes x up, y left, z towards the user and subsequently applies configured sensor orientation, negated translation in a matrix, and display-orientation-dependent transforms. Those later operations are not part of this raw decoder.",
+    "remaining": "A081 physical/world handedness, head/IMU origin, translation scale under real movement, recenter policy and complete mapping to Monado/OpenXR remain unvalidated. Do not insert a guessed axis swap or quaternion conjugate into the decoder.",
+    "timestamp": "Both output records copy the input gyro timestamp. For the current external combined-ring path that is the supplied IIO CLOCK_BOOTTIME ns. A future native sensor/camera transport must establish its own QTimer/BOOTTIME relationship instead of applying the external-path conclusion globally.",
+    "prediction": "The angular/translation coefficient offsets are established, but this task does not integrate a prediction algorithm. DL group semantics remain unresolved."
+  },
+  "parser_api": {
+    "header": "xr-desktop/system/tracking/head/a081_pose_output.hpp",
+    "namespace": "a081::stock::pose_output",
+    "pose": "DecodeStatus decode_latest_pose_snapshot(const void *snapshot, size_t bytes, PoseSnapshot &out) noexcept",
+    "dl": "DecodeStatus decode_latest_dl_prediction_snapshot(const void *snapshot, size_t bytes, DlPredictionSnapshot &out) noexcept",
+    "result": "DecodeStatus::ok means layout parsed. Outputs remain unchanged on error. Each decoded type declares static constexpr bool valid=false.",
+    "validation": "Host c++ and aarch64-linux-gnu-g++ both accepted the header with C++17, -Wall -Wextra -Wpedantic -Werror -fsyntax-only. No synthetic sensor input or runtime tracking test was performed by this task.",
+    "record": "DecodeStatus decode_pose_record(const void *record, size_t bytes, uint32_t published_index, PoseSnapshot &out) noexcept"
+  },
+  "supplemental_evidence": [
+    {
+      "path": "build/xr-stock-tracking-r1/pose/publish.asm",
+      "sha256": "2960c4de937b77b2df0c60700257aed9c01cf433adc405b7f83e94b356b28930"
+    },
+    {
+      "path": "build/xr-stock-tracking-r1/pose/pose-transform.asm",
+      "sha256": "52a78a315ad09fd85bb676cafb3ea96381e73b35649f05b08cc1dcc227402274"
+    },
+    {
+      "path": "build/xr-stock-tracking-r1/pose/imu-pose-dl-writer.asm",
+      "sha256": "8bda0da5f49546b96aa033462076c28f55cda3f64824d9ce2d0c5b3066402954"
+    },
+    {
+      "path": "build/xr-stock-tracking-r1/pose/state-name-table.json",
+      "sha256": "2a1fd426870c055b005b6fe1d6b3c883a20fb29b60fdeab7aa88c755dba2ab3a"
+    },
+    {
+      "path": "build/xr-stock-tracking-r1/pose/input-manifest.json",
+      "sha256": "267fc34cdf092eb6999b563e3444ddef41d673ada8aa7be50d4f0b6b8f998aec"
+    }
+  ],
+  "parent_device_observation": {
+    "source": "reports/device/xr-tracking-r1/pose-decode.log",
+    "sha256_at_review": "3436150419de0fe9556b41b206b8e5627fd4d52f08500a1490c30e67b4d2acd5",
+    "authority": "Existing parent-run real-device log, reviewed offline by this task. No device operation performed here.",
+    "pose": {
+      "published_index": 9,
+      "timestamp_ns": 20338964453977,
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "translation": [
+        0,
+        0,
+        0
+      ],
+      "tracking_state": 4,
+      "warning_flags": 0,
+      "pose_quality": 0,
+      "sensor_quality": 0,
+      "camera_quality": 0,
+      "openxr_valid": false,
+      "quiescent_snapshot": true
+    },
+    "dl_prediction": {
+      "published_index": 9,
+      "timestamp_ns": 20338964453977,
+      "coefficient_counts": [
+        6,
+        6,
+        6,
+        6
+      ],
+      "producer_marker": 1,
+      "openxr_valid": false,
+      "quiescent_snapshot": true
+    },
+    "conclusion": "The real IMU path publishes timestamped output whose vendor state label is TRACKING while pose_quality is0 and rotation remains identity. This directly demonstrates that state4, marker1, matching timestamps, and unit quaternion do not establish valid head tracking or visual6DoF.",
+    "raw_buffers": "Parent is acquiring raw ring snapshots separately; this contract does not claim to have parsed those files yet."
+  },
+  "stock_android_live_reference": {
+    "observer_source": "xr-desktop/system/tracking/head/stock-android-pose-observer.c",
+    "active_positional_samples": 242,
+    "quality_state_warning": [
+      0,
+      4,
+      1
+    ],
+    "observed_sdk_layout": 192,
+    "timestamps_strictly_advancing": true,
+    "scope": "Existing original Android QVR getter; does not validate Debian concurrent ring consumer or physical coordinate mapping."
+  }
+}

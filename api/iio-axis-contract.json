@@ -1,0 +1,214 @@
+{
+  "schema_version": 1,
+  "target": "Qiyu MIX A081, Debian qcom-see IIO with original SEE firmware and registry",
+  "status": "offline_evidence_confirmed_relative_axes",
+  "purpose": "Real IIO samples into QVR external-sensor SDK; no synthetic input, hardware access, kernel change or bridge change performed for this investigation.",
+  "result": {
+    "environment_variable": "A081_QVR_IIO_TO_ANDROID",
+    "environment_value": "1,2,3",
+    "signed_permutation": [
+      1,
+      2,
+      3
+    ],
+    "convention": "Each output Android axis names its signed 1-based input IIO axis: Android x=+IIO x, y=+IIO y, z=+IIO z.",
+    "rotation_matrix": [
+      [
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        0
+      ],
+      [
+        0,
+        0,
+        1
+      ]
+    ],
+    "applies_to": [
+      "accel",
+      "gyro"
+    ],
+    "claim": "The current Debian IIO driver and original Android sensors HAL preserve the same ordered sns_std_sensor_event data[0..2] as xyz. No additional fixed swap, sign flip or rotation is needed between those software frames.",
+    "not_inferred_from": "trinity sensor_orientation identity; this conclusion follows from the actual Android HAL event conversion and current qcom-see source.",
+    "preconditions": [
+      "The device continues using the original A081 SEE firmware and compatible original ICM4x6xx registry configuration.",
+      "The IIO source is qcom-see accel/gyro backed by the ordinary sns_std_sensor_event ID 1025, not a different raw chip-coordinate source.",
+      "Read axes in x,y,z order using the actual scan layout and apply the exported IIO scale once."
+    ]
+  },
+  "units": {
+    "iio_integer_unit": "micro-SI",
+    "iio_scale": 1e-06,
+    "conversion": "Android sample[i] = IIO signed integer axis[i] * 0.000001",
+    "accel": "m/s^2",
+    "gyro": "rad/s",
+    "timestamp": "QVR external SDK requires Android BOOTTIME nanoseconds; timestamp conversion is a separate contract and is not established by the axis proof."
+  },
+  "proof_chain": [
+    {
+      "stage": "SEE event to Debian IIO",
+      "artifact": "debian_iio_driver",
+      "locations": [
+        "SEE_SAMPLE_EVENT = 1025 at line 35",
+        "see_float_micro at line 300",
+        "see_sample at line 379",
+        "see_read_raw at line 555"
+      ],
+      "observation": "Field 1 repeated float32 values are consumed sequentially with scan.axis[n++]. see_float_micro preserves each sign and converts to signed micro-SI. see_read_raw reports IIO_VAL_INT_PLUS_MICRO with val=0,val2=1. There is no axis permutation, sign flip or rotation."
+    },
+    {
+      "stage": "Same SEE event to original Android acceleration event",
+      "artifact": "android_hal",
+      "function": "accelerometer::handle_sns_client_event",
+      "elf_address": "0x53c6c",
+      "rea_address": "0x153c6c",
+      "extracted_source": "build/xr-stock-tracking-r1/axis/accelerometer_handle_sns_client_event.c",
+      "observation": "For event ID 0x401, protobuf data backing offsets +8,+12,+16 become Android Event xyz in that order. Calibrated mode subtracts x/y/z biases from the corresponding axes. Uncalibrated mode copies xyz and reports the three biases separately. The enqueued original Event is not modified by can_submit_sample, which receives a separate copy.",
+      "code_anchors": [
+        "lines 117-121: calibrated data[0..2] minus same-axis biases",
+        "lines 158-165: uncalibrated data[0..2] and biases",
+        "lines 222-243: gate on a copy and enqueue original xyz"
+      ]
+    },
+    {
+      "stage": "Same SEE event to original Android angular velocity event",
+      "artifact": "android_hal",
+      "function": "gyroscope::handle_sns_client_event",
+      "elf_address": "0x5defc",
+      "rea_address": "0x15defc",
+      "extracted_source": "build/xr-stock-tracking-r1/axis/gyroscope_handle_sns_client_event.c",
+      "observation": "For event ID 0x401, data[0..2] likewise becomes Android Event xyz in original order. Calibrated mode only subtracts the respective three bias values; uncalibrated mode copies xyz. Original Event xyz is enqueued after the gate receives a copy.",
+      "code_anchors": [
+        "lines 115-121: calibrated xyz",
+        "lines 148-155: uncalibrated xyz",
+        "lines 212-233: gate and original Event enqueue"
+      ]
+    },
+    {
+      "stage": "Original Android event delivery",
+      "artifact": "android_hal",
+      "function": "sensor::submit",
+      "elf_address": "0x325c8",
+      "rea_address": "0x1325c8",
+      "extracted_source": "build/xr-stock-tracking-r1/axis/sensor_submit.c",
+      "observation": "Copies the queued android::hardware::sensors::V1_0::Event vector directly into the Android FMQ using MessageQueue::MemTransaction::copyTo and signals the event flag. No coordinate conversion is inserted."
+    },
+    {
+      "stage": "External SDK input requirement",
+      "artifact": "sdk_external_sensor_header",
+      "locations": [
+        "sensor_sample_t, lines 46-54"
+      ],
+      "observation": "Declares float sample[3] in Android portrait orientation, accel m/s/s and gyro rad/s. The relative-frame equality above therefore establishes the required signed permutation for this external input route."
+    }
+  ],
+  "registry": {
+    "artifacts": [
+      "persist_orientation",
+      "debian_orientation_copy",
+      "stock_board_config"
+    ],
+    "orientation": [
+      "-x",
+      "+y",
+      "-z"
+    ],
+    "persist_and_debian_copy_identical": true,
+    "scope": "This is an upstream ICM4x6xx SEE-driver registry orientation. The HAL consumes already produced sns_std_sensor_event values without applying it on AP. Do not apply this registry rotation again when adapting the same events from IIO.",
+    "limitation": "This offline review verified local registry copies, not the current on-device mounted registry. The identity between the two event-conversion paths is independently visible in their code."
+  },
+  "direct_channel_scope": {
+    "ap_frontend_confirmed": true,
+    "sample_write_body_confirmed": false,
+    "observations": [
+      "sensors_hal::config_direct_report obtains the chosen sensor SUID, period, timestamp offset and sensor handle. Its flags select calibrated versus uncalibrated reporting (observed values 6 and 2). No axis matrix or permutation is passed in this AP setup.",
+      "direct_channel::init_fastRPC_symbols loads libsns_low_lat_stream_stub.so and resolves sns_low_lat_stream_init/deinit/stop/config/offset_update.",
+      "direct_channel::config_channel delegates to sns_low_lat_stream_config.",
+      "The small SLPI libsns_low_lat_stream_skel.so maps the shared buffer using apps_mem_share_map and forwards configuration to imported sns_llcm_config. The actual low-latency sample writer is resident in firmware and was not decompiled."
+    ],
+    "limitation": "Do not describe the direct-channel firmware sample-copy implementation as fully verified by this analysis. The chosen external SDK route needs the Android sensor event frame, which is directly established by the normal original Android HAL above.",
+    "hexagon_decompiler_caution": "Hexagon pseudocode can omit register-passed arguments; the low-latency skeleton is used only to establish delegation, not to infer sns_llcm_config prototype or axis handling."
+  },
+  "remaining_limits": [
+    "No physical rotation/optical/world-alignment observation was made in this offline task.",
+    "Axis identity is not a claim of equal calibrated numerical values: the stock Android calibrated HAL subtracts sensor-calibration biases while qcom-see currently forwards the raw SEE sample.",
+    "Current live firmware/registry equivalence is an input precondition; no device access occurred.",
+    "No complete OpenXR positional tracking or sensor-to-camera timing validation is implied."
+  ],
+  "artifacts": {
+    "debian_iio_driver": {
+      "path": "kernel/drivers/iio/imu/qcom-see.c",
+      "sha256": "79007e81f41a67d4ffceb4528d13c2f2e1141edc07898d5dba69362d91047df1"
+    },
+    "android_hal": {
+      "path": "build/xr-stock-tracking-r1/axis/vendor/lib64/sensors.ssc.so",
+      "sha256": "08f7157ff5f05e87ae72cdbe16b7ee4d2fb9f55eb4eaaaee8f0904a384479ac7"
+    },
+    "android_hal_selection": {
+      "path": "build/xr-stock-tracking-r1/axis/vendor/etc/sensors/hals.conf",
+      "sha256": "79c1febf7ce0c06a9e2612a4137bbdaffb5ed6cd18c89415216e482a287a591b"
+    },
+    "persist_orientation": {
+      "path": "build/imu-debian/persist/sensors/registry/registry/icm4x6xx_0_platform.orient",
+      "sha256": "549286a96067b3d6c30c7b0073763f24f34518bb198991d315de719194f89567"
+    },
+    "debian_orientation_copy": {
+      "path": "build/imu-debian/device-data/sensors/registry/icm4x6xx_0_platform.orient",
+      "sha256": "549286a96067b3d6c30c7b0073763f24f34518bb198991d315de719194f89567"
+    },
+    "stock_board_config": {
+      "path": "build/imu-debian/vendor/etc/sensors/config/sxr2130_trinity_icm4x6xx_0.json",
+      "sha256": "b168769e4261c015c5471be79c06d8949a71e15d8c107258daeb41691d9a909f"
+    },
+    "sdk_external_sensor_header": {
+      "path": "/workspace/vr/vr/vr700_openxr/sdk/snapdragon/SnapdragonXR-SDK-binary.rel.4.0.6/3rdParty/qvr/inc/QVRServiceExternalSensors.h",
+      "sha256": "6fc89ae5acc3faa2c352c4a0c5520a00491884365e5f4bac1b8fa28f275ae273"
+    },
+    "slpi_low_latency_skeleton": {
+      "path": "build/xr-tracking-r1/stock/system/system/lib/rfsa/adsp/libsns_low_lat_stream_skel.so",
+      "sha256": "bdf5cbe7328bf772eb143a38c214121847ddf7f97a11cae83301f2057e35830f"
+    }
+  },
+  "rea_evidence": {
+    "hal_flow": {
+      "path": "build/xr-stock-tracking-r1/axis/hal-flow-decompile.json",
+      "evidence_id": "ev_8419377b04b372dbda91a84dc0d2098b69783414647f00ce2a2a5db1d53bf899",
+      "address_bias": "0x100000",
+      "sha256": "d2d2c9f0bc16d18a30be652854627f68b24e73182efeb1dd050aad81db87c6c8"
+    },
+    "hal_guards_valid_results_only": {
+      "path": "build/xr-stock-tracking-r1/axis/hal-axis-guards.json",
+      "evidence_id": "ev_c590119677b2f4b2388ddeb2afff25e8652d6fe515ea7541bd377c57df29ca86",
+      "address_bias": "0x100000",
+      "valid_results": [
+        "accelerometer constructor",
+        "gyroscope constructor",
+        "direct_channel::init_fastRPC_symbols"
+      ],
+      "excluded_failed_request": "The guessed mangled can_submit_sample name failed lookup; no conclusion relies on a decompile of that function.",
+      "sha256": "f28253f8451d731b424f0cf1b2780bced23ac528945fe5c8e5f9becb76be9d26"
+    },
+    "lowlat": {
+      "path": "build/xr-stock-tracking-r1/axis/lowlat-decompile.json",
+      "evidence_id": "ev_045ec1efbb02e78ea8763d049c940689f9d5524d520b82b99cc95cc2088686d3",
+      "address_bias": "0x10000",
+      "functions": [
+        "sns_low_lat_stream_init at ELF 0x2fd0 / REA 0x12fd0",
+        "sns_low_lat_stream_config at ELF 0x31d0 / REA 0x131d0"
+      ],
+      "sha256": "5a6a924d28dc29565e4e447e48623bcfcf5bb2ac15d1e3d9a05b1860e9a689b0"
+    }
+  },
+  "session": {
+    "port": 18764,
+    "state": "build/xr-stock-tracking-r1/axis/state.json",
+    "native_binary_closed": true,
+    "close_evidence": "build/xr-stock-tracking-r1/axis/close-final.json",
+    "server_stopped": true
+  }
+}

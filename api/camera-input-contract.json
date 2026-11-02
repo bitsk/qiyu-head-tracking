@@ -1,0 +1,614 @@
+{
+  "schema_version": 1,
+  "target": "A081 original QVR four OV7251 camera input",
+  "status": "minimum_rpc_and_timing_formula_recovered; physical_exposure_event_and_frame_matching_require_kernel_evidence",
+  "scope": "Focused input ABI and timing contract from original AP/DSP libraries, public SDK metadata, original CamX timestamp producer/publisher and selected sensor-mode parser; not a replacement camera driver or a claim of validated six-DoF.",
+  "frame_rpc": {
+    "function": "qvr_dsp_driver_camera_frame_update",
+    "scalar": "0x07040000",
+    "input_buffers": 4,
+    "output_buffers": 0,
+    "primitive_wire_bytes": 40,
+    "primitive_semantic_bytes": 36,
+    "fields": [
+      {
+        "offset": 0,
+        "name": "width",
+        "type": "u32",
+        "target_value": 1280
+      },
+      {
+        "offset": 4,
+        "name": "height",
+        "type": "u32",
+        "target_value": 480
+      },
+      {
+        "offset": 8,
+        "name": "timestamp",
+        "type": "u64"
+      },
+      {
+        "offset": 16,
+        "name": "buf_length",
+        "type": "u32",
+        "target_value": 614400
+      },
+      {
+        "offset": 20,
+        "name": "auxBuf_length",
+        "type": "u32",
+        "target_value": 614400
+      },
+      {
+        "offset": 24,
+        "name": "cam_IDs_count",
+        "type": "u32",
+        "target_value": 4
+      },
+      {
+        "offset": 28,
+        "name": "frame_number",
+        "type": "i32"
+      },
+      {
+        "offset": 32,
+        "name": "aux_frame_number",
+        "type": "i32"
+      },
+      {
+        "offset": 36,
+        "name": "tail_alignment_padding",
+        "type": "4 bytes",
+        "target_value": 0
+      }
+    ],
+    "input_order": [
+      "40-byte primitive buffer",
+      "primary tracking mosaic image bytes",
+      "auxiliary ctrl-tracking mosaic image bytes",
+      "4 camera calibration names in 64-byte NUL-terminated slots"
+    ],
+    "newly_resolved_names": "The original qvr_dsp_driver_slim metadata names the formerly neutral final_int_a/final_int_b fields frame_number and aux_frame_number.",
+    "frame_numbers": "Use actual identities of the synchronized primary and auxiliary pair frames; a sequence number assigned to unrelated captures is not synchronization evidence.",
+    "exposure_not_a_separate_rpc_field": "The DSP frame RPC carries one already-adjusted timestamp. Exposure/readout timing must be incorporated correctly before serialization; neither duration is a standalone field in this call.",
+    "result": "Return status acknowledges camera processing. Head pose/validity comes from the real shared rings, not an output buffer from this RPC."
+  },
+  "image_layout": {
+    "format": "Y8",
+    "primary_group": "tracking",
+    "auxiliary_group": "ctrl-tracking",
+    "mosaic_width": 1280,
+    "mosaic_height": 480,
+    "mosaic_stride": 1280,
+    "mosaic_bytes": 614400,
+    "per_camera_width": 640,
+    "per_camera_height": 480,
+    "per_camera_stride": 1280,
+    "packing": "For each row, put the A camera 640 Y8 pixels then the B camera 640 Y8 pixels. This is a side-by-side mosaic with shared row stride, not two entire image planes concatenated.",
+    "dsp_split": [
+      {
+        "slot": 0,
+        "name": "trackingA",
+        "source": "primary",
+        "byte_offset": 0
+      },
+      {
+        "slot": 1,
+        "name": "trackingB",
+        "source": "primary",
+        "byte_offset": 640
+      },
+      {
+        "slot": 2,
+        "name": "ctrl-trackingA",
+        "source": "auxiliary",
+        "byte_offset": 0
+      },
+      {
+        "slot": 3,
+        "name": "ctrl-trackingB",
+        "source": "auxiliary",
+        "byte_offset": 640
+      }
+    ],
+    "dsp_helper_observation": "tracker_helper_6dof_camera_update halves input width, keeps full width as per-camera stride, sets each image span to primary_length - half_width and builds 96-byte native frame records. The target four-image path requires a valid auxiliary buffer.",
+    "target_per_image_span_bytes": 613760,
+    "source_requirement": "Convert/repack actual V4L2 formats and strides into this exact Y8 layout; buffer size and physical camera identities must match the supplied calibration."
+  },
+  "camera_identity": {
+    "names": [
+      "trackingA",
+      "trackingB",
+      "ctrl-trackingA",
+      "ctrl-trackingB"
+    ],
+    "encoding": "64-byte slot per name with NUL terminator; zero-fill remaining bytes in a new adapter.",
+    "calibration_ids": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "distinction": "The RPC array contains calibration names, not the numeric IDs or Linux video-node numbers.",
+    "mapping_requirement": "Bind the physical sensor to its original calibration identity; video node enumeration alone is not a stable physical mapping.",
+    "dsp_limit": "The inspected helper rejects cam_IDs_count > 4; the A081 target supplies four names.",
+    "original_wiring_reference": {
+      "evidence_key": "original_camera_wiring",
+      "source": "Captured runtime-stock.dtb cell-index/cci-master/csiphy-sd-index, plus original trinity ordered camera IDs. FDT node suffixes are not camera IDs: cam-sensor2 has slot0 and cam-sensor0 has slot2.",
+      "configured_order": [
+        {
+          "calibration_name": "trackingA",
+          "config_camera_id": 0,
+          "original_slot": 0,
+          "csiphy": 5,
+          "new_kernel_bus_from_parent": 20
+        },
+        {
+          "calibration_name": "trackingB",
+          "config_camera_id": 1,
+          "original_slot": 1,
+          "csiphy": 4,
+          "new_kernel_bus_from_parent": 21
+        },
+        {
+          "calibration_name": "ctrl-trackingA",
+          "config_camera_id": 2,
+          "original_slot": 2,
+          "csiphy": 2,
+          "new_kernel_bus_from_parent": 22
+        },
+        {
+          "calibration_name": "ctrl-trackingB",
+          "config_camera_id": 3,
+          "original_slot": 3,
+          "csiphy": 3,
+          "new_kernel_bus_from_parent": 23
+        }
+      ],
+      "pair_name_evidence": "Previously recovered QVRServiceCamDeviceHAL3Pair constructor ELF0xe959c/REA0xf959c appends A to its first child and B to its second; trinity config is tracking0,1 and ctrl-tracking2,3. Existing constructor evidence camera_pixel_sync_defaults is reused, with no new reverse analysis.",
+      "limit": "This is the original configured order and electrical slot/PHY mapping. It is not a new physical lens-position observation or a guarantee based on /dev/video enumeration; parent maps current nodes by sensor bus/PHY."
+    }
+  },
+  "buffer_registration": {
+    "function": "qvr_dsp_driver_set_camera_buffers",
+    "scalar": "0x19030000",
+    "primitive_bytes": 8,
+    "primitive_fields": [
+      "u32 fd_count",
+      "u32 size_count"
+    ],
+    "following_buffers": [
+      "int32 fds[fd_count]",
+      "uint32 allocation_sizes[size_count]"
+    ],
+    "requirements": "Counts must be equal and positive; fds must be nonnegative and sizes nonzero. These must identify real buffer allocations with the required DSP/CVP access and cache ownership, not invented descriptors.",
+    "observed_stock_count": "The stock AP ShareCameraBuffers walks 16 buffers per logical camera group. Sixteen is the AP service choice, not a count-equals-16 check in the inspected DSP setter.",
+    "replacement_semantics": "The DSP setter frees/replaces its stored fd-size table on each call; it does not append groups. Do not assume two calls accumulate 32 entries.",
+    "start_consumption": "QVR mode-1 start calls tracker_helper_6dof_set_cvp_fds only when the stored table count is greater than zero.",
+    "cvp_scope": "This table is the CVP camera-fd registration path. A CPU visual path must not be forced to create CVP kernel sessions merely to satisfy this registration; exact CPU buffer handling must follow the already selected original CPU configuration and actual mapped frame RPC buffers.",
+    "lifetime": "Keep frame payloads valid and correctly synchronized through synchronous camera_frame_update completion. The stock AP locks before call and unlocks after it."
+  },
+  "timestamp_and_exposure": {
+    "native_service_expression": "timestamp = start_of_exposure_boottime_ns + floor(exposure_ns/2) + floor(full_sensor_rolling_shutter_skew_ns/2) + conditional_AndroidToQTimeDiff; the offset is added only for the native IMU/service branch described below.",
+    "source": "Original QVRServiceTracker::VRTrackerF and QVRServiceDspWrapperMgr::ComputeAndroidToQTimeDiff.",
+    "internal_duration_names": "Recovered from original producer stores, HAL3 result tags and the public external-camera prefix: metadata+0x180 is exposure_ns (u64); metadata+0x198 is full_sensor_rolling_shutter_skew_ns (u64). metadata+0x190 is frame_duration_ns, and +0x1a0 is target_rolling_shutter_skew_ns; neither of these latter two is the term read by VRTrackerF.",
+    "public_sdk_requirement": "QVRServiceExternalCamera.h defines start_of_exposure_ts as kernel BOOTTIME ns, exposure as ns and rolling_shutter_skew_ns as ns. Original FrameReadyCbApi2 copies their ARM32 offsets +8/+0x10/+0x30 to private metadata +0x10/+0x180/+0x198 respectively. Exposure is zero-extended from u32 to u64; both halves of skew are copied.",
+    "timestamp_to_submit": "For the current external combined IMU path: capture_time_boottime_ns = start_of_exposure_boottime_ns + exposure_ns/2 + stock_selected_skew_ns/2, with separate integer divisions and checked uint64 additions. Original HAL3 Y8 selects skew=0, so its equivalent is start_of_exposure_boottime_ns + exposure_ns/2. This is an implementable arithmetic contract, conditional on real same-frame exposure/timestamp evidence.",
+    "current_blocker": "Original CamX SOF-to-exposure-start arithmetic and its HAL3 publishing chain are recovered below. Reuse this original software convention with actual frame-associated BOOTTIME SOF and effective integration metadata. Current kernel synchronization and control tests are owned by the kernel task; absolute optical calibration is not claimed here and is not a new prerequisite beyond reproducing the original convention.",
+    "not_allowed": "Do not replace missing exposure timing with current userspace receipt time, label EOF as exposure start, or give independent frames an invented shared timestamp.",
+    "calibration_note": "Preserve original calibration XML TimeAlignment values (tracking cameras 0.000200 seconds, controller-tracking cameras 0.000204 seconds). Their application belongs to the original tracker; do not independently double-apply these calibration offsets without evidence.",
+    "external_sensor_branch": "VRTrackerF adds AndroidToQTimeDiff only when external_sensor_lib is empty and service+0xb8==0. The present external combined IMU adapter preserves BOOTTIME; future camera input must use the corresponding BOOTTIME branch, not add the native QTimer offset unconditionally. See imu-input-contract.json time_domain.",
+    "current_userspace_api": "QvrModule::camera_frame accepts aligned_capture_time_ns without conversion. Its caller must supply the above BOOTTIME-aligned image time. This contract does not claim a live camera caller or device timing validation.",
+    "producer_evidence": {
+      "private_metadata_stride_bytes": 520,
+      "fields": [
+        {
+          "offset": "0x10",
+          "type": "u64",
+          "meaning": "start_of_exposure_boottime_ns",
+          "external_source_offset": "0x08",
+          "hal3_source": "ANDROID_SENSOR_TIMESTAMP (0x000e0010) or SHUTTER notification; cache slot +0x178/+0x17c; JobProcessFrame copies to private frame +0x10/+0x14."
+        },
+        {
+          "offset": "0x180",
+          "type": "u64",
+          "meaning": "exposure_ns",
+          "external_source_offset": "0x10 (u32, zero-extended)",
+          "hal3_source": "ANDROID_SENSOR_EXPOSURE_TIME (0x000e0000); cache +0x188/+0x18c; JobProcessFrame copies to frame +0x180/+0x184."
+        },
+        {
+          "offset": "0x190",
+          "type": "u64",
+          "meaning": "frame_duration_ns",
+          "used_in_tracker_timestamp": false
+        },
+        {
+          "offset": "0x198",
+          "type": "u64",
+          "meaning": "full_sensor_rolling_shutter_skew_ns",
+          "external_source_offset": "0x30",
+          "hal3_source": "ANDROID_SENSOR_ROLLING_SHUTTER_SKEW (0x000e001a); cache +0x198/+0x19c; retained only for effective format YUV420=2."
+        },
+        {
+          "offset": "0x1a0",
+          "type": "u64",
+          "meaning": "target_rolling_shutter_skew_ns",
+          "used_in_tracker_timestamp": false,
+          "hal3_source": "ProcessCaptureResult derives a separate target value using gVendorTag_SensorOutputDim and output dimensions; external callback copies the same supplied skew to both full and target fields."
+        }
+      ],
+      "functions": [
+        {
+          "name": "QVRServiceCameraExternal::FrameReadyCbApi2",
+          "elf_address": "0x0f53c4",
+          "rea_address": "0x1053c4",
+          "evidence_key": "camera_metadata_producers"
+        },
+        {
+          "name": "QVRServiceCamDeviceHAL3::ProcessCaptureResult(V3_2)",
+          "elf_address": "0x0ddf74",
+          "rea_address": "0x0edf74",
+          "evidence_key": "camera_metadata_producers"
+        },
+        {
+          "name": "QVRServiceCamDeviceHAL3::UpdateMetadataWithNewExposure",
+          "elf_address": "0x0e529c",
+          "rea_address": "0x0f529c",
+          "evidence_key": "camera_metadata_producers"
+        },
+        {
+          "name": "QVRServiceCamDeviceHAL3::JobProcessFrame",
+          "elf_address": "0x0deef4",
+          "rea_address": "0x0eeef4",
+          "evidence_key": "camera_actual_frame_metadata"
+        },
+        {
+          "name": "QVRCamDeviceCtl::GetFrameMetaData",
+          "elf_address": "0x0efa84",
+          "rea_address": "0x0ffa84",
+          "evidence_key": "camera_frame_accessor_and_timing"
+        }
+      ],
+      "same_frame_requirement": "JobProcessFrame requires matching frame-number tags for exposure, BOOTTIME timestamp, duration and rolling-shutter metadata; missing tags mark/drop the frame. Do not substitute latest requested exposure for the actual value associated with the captured frame.",
+      "metadata_estimates_are_not_measurements": "UpdateMetadataWithFrameTiming may prefill timestamp as GetFrameSofEstimate(frame)-exposure; GetFrameSofEstimate extrapolates earlier frames and can initialize from QVRGetBootTimeNs. JobProcessFrame replaces it with actual matching shutter metadata. This estimator is not proof that a new kernel SOF/FSIN edge is exposure end."
+    },
+    "original_hal3_y8_rule": {
+      "condition": "JobProcessFrame chooses effective format from this+0x7844 if this+0xa0 is set, otherwise this+0xf8. Only format==2 (QVRCAMERA_FRAME_FORMAT_YUV420) preserves reported skew; all other formats set full and target skew terms to zero.",
+      "assembly_range_elf": "0x0df2f2..0x0df374",
+      "assembly_range_rea": "0x0ef2f2..0x0ef374",
+      "y8_formula": "For QVRCAMERA_FRAME_FORMAT_Y8=1, stock-selected skew term is 0; t_submit_boottime_ns = t_start_of_exposure_boottime_ns + floor(exposure_ns/2).",
+      "meaning_limit": "This proves stock software behavior for Y8, not physical zero rolling skew of arbitrary sensors or a calibrated relation between a GPIO/CSI event and optical exposure. The external-camera callback itself preserves the provider's explicit skew value rather than enforcing this format branch."
+    },
+    "minimum_kernel_to_userspace_fields": [
+      {
+        "name": "frame_event_identity",
+        "required": "Verified common trigger/capture event or otherwise calibrated association across the paired cameras; preserve actual per-camera sequence and drop mismatches."
+      },
+      {
+        "name": "start_of_exposure_boottime_ns",
+        "required": "Measured/reconstructed exposure start in the same BOOTTIME domain as real IMU; source event kind and fixed offset must be established for the active sensor mode."
+      },
+      {
+        "name": "effective_exposure_ns",
+        "required": "Actual integration duration for this captured frame, derived from applied sensor settings plus known line/pixel timing; do not silently use requested-but-not-yet-applied controls."
+      },
+      {
+        "name": "stock_selected_skew_ns",
+        "required": "0 for explicit reproduction of the proven original HAL3 Y8 branch; otherwise the real full-sensor rolling-shutter skew supplied by a proven metadata path. Never substitute frame duration or ADC/line-readout parameter solely by name."
+      }
+    ],
+    "remaining_hardware_unknowns": [
+      "FSIN polarity/edge and the event-to-exposure-start offset for the active A081 OV7251 mode.",
+      "Exposure control application delay and per-frame integration-time association.",
+      "Real four-camera synchronization, frame pairing and timestamp alignment with BOOTTIME IMU."
+    ],
+    "timestamp_producer_limit": {
+      "conclusion": "The original A081 CamX does not pass the CSL SOF timestamp through as exposure start. It subtracts same-request exposure, one computed line period and optional ADCReadoutTime before publishing the exposure-start property.",
+      "source_identity": {
+        "path": "reports/device/camera-sync-rea-r1/source-identity.json",
+        "sha256": "51a420e6667788c0289f732c89350268a78c16dd8502db9249344fc938c37686"
+      },
+      "normalized_camx": {
+        "path": "build/camera-debian/stock-camera/camera-live.qcom.so",
+        "sha256": "d591fed9edc7c8181edbfe31ea77d8990155c15ddc6b6502d66d9e973b24b46a"
+      },
+      "original_device_sha256": "5e8e67a377a6f4a89ebd5a4bdd999d8c660950661e44c9b1cc75f30a7adda4af",
+      "normalization": "Only ELF section metadata was normalized for tools; source-identity.json proves original device bytes and unchanged runtime code/data. Old camera.qcom.so was a container template, not the analyzed live version.",
+      "functions": [
+        {
+          "name": "CamX::SensorNode::NotifyCSLMessage",
+          "elf_address": "0x421218",
+          "rea_address": "0x521218",
+          "evidence_id": "ev_5338bf20bf1ae3bf90a1295fa11f46f3efab5dfb094fd540742dc35068578cf8",
+          "role": "On CSLMessage.type=0, get same-request tag0xe0000 exposure, read message+0x18 timestamp, compute corrected time, Node::WriteData property0x3000001e. Reads static selected mode with stride0x178."
+        },
+        {
+          "name": "CamX::SensorDriverDataClass::LoadResolutionData",
+          "elf_address": "0x0f6c60",
+          "rea_address": "0x1f6c60",
+          "evidence_key": "camx_timestamp_publish_and_mode",
+          "role": "Resolves serialized optional ADCReadoutTime reference; count at mode+0x158, value at+0x160. Count0 explicitly stores double0."
+        },
+        {
+          "name": "CamX::Pipeline::CSLMessageHandler",
+          "elf_address": "0x522530",
+          "rea_address": "0x622530",
+          "evidence_key": "camx_timestamp_publish_and_mode",
+          "role": "For the successful frame-notify branch message+0x28==1, invokes each node NotifyCSLMessage, then gets property0x3000001e from same-request metadata and overwrites message+0x18. Missing property logs failure and retains original value; it is not an unconditional guarantee of valid exposure metadata."
+        },
+        {
+          "name": "CamX::Pipeline::SendShutterNotification",
+          "elf_address": "0x5276b0",
+          "rea_address": "0x6276b0",
+          "evidence_key": "camx_timestamp_publish_and_mode",
+          "role": "When hardware-timestamp selection is active, consumes CSLFrameMessage+0x10 (same message+0x18), publishes ANDROID_SENSOR_TIMESTAMP0xe0010 in result metadata and SHUTTER timestamp. Non-hardware path or zero timestamp falls back to current CLOCK_BOOTTIME; that fallback is not a capture timestamp to reproduce in the new adapter."
+        }
+      ],
+      "expostart_logging_gate": "In NotifyCSLMessage the globals associated with exposure-start logging gate only clock_gettime(CLOCK_MONOTONIC) and the log after WriteData. They do not gate the exposure correction. That diagnostic clock read does not convert the capture timestamp timebase.",
+      "meaning_boundary": "Recovered software convention, not an independent measurement of optical exposure start. New hardware SOF must identify the same capture event and be translated to BOOTTIME before use with the external IMU. Relative four-camera SOF agreement alone does not measure absolute optical delay.",
+      "active_mode_boundary": "The 19335 ns value below is recovered from the original compiled mode descriptor. Do not recompute it from observed FSIN frame rate or assert that it is the physical line period of every new kernel mode. Distinguish exact original software-equivalence from a separately justified active-mode line correction.",
+      "no_fixed_extra_offset_found": "The inspected original mode uses ADCReadoutTime=0; no additional OV7251-specific fixed SOF correction is present in this recovered path. No full CamX/plugin survey was performed."
+    },
+    "reusable_formula": {
+      "variables": {
+        "S": "frame-associated original CSL SOF ns, converted to BOOTTIME for the external adapter",
+        "E": "actual same-frame integration duration ns; original tag ANDROID_SENSOR_EXPOSURE_TIME0xe0000",
+        "L": "u32 mode+0x18",
+        "F": "u32 mode+0x1c",
+        "R": "double mode+0x38",
+        "A": "double mode+0x160 ADCReadoutTime; software scales by1e6 to ns"
+      },
+      "original_operations": [
+        "clock_denominator = uint64(double(uint32(F*L)) * R)",
+        "line_ns = clock_denominator ? llroundl(double(L & 0xffff) * 1e9 / double(clock_denominator)) : 0",
+        "if S == 0: t_start = 0; otherwise t_start = int64(double(uint64(S-E-line_ns)) - A*1e6)",
+        "For proven Y8 branch: t_submit = t_start + floor(E/2); selected rolling-shutter term=0."
+      ],
+      "implementation_bounds": "For valid positive times use checked subtraction S>=E+line_ns, finite nonnegative durations and same-frame association; do not reproduce unsigned underflow or wall-clock fallback. With A=0 and times below2^53ns this is exactly integer S-E-line_ns.",
+      "original_ov7251_mode": {
+        "L": 928,
+        "F": 1724,
+        "R": 30.0,
+        "clock_denominator": 47996160,
+        "line_ns": 19335,
+        "ADCReadoutTime": 0.0,
+        "descriptor_id": 440,
+        "descriptor_count": 0,
+        "applies_to_original_modules": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "evidence_key": "ov7251_timestamp_mode"
+      },
+      "original_y8_integer_formula": "t_start_boottime_ns = S_boottime_ns - E_ns - 19335; t_submit_boottime_ns = t_start_boottime_ns + floor(E_ns/2). Do not simplify to S-floor(E/2)-19335 for odd E, since the original separate operations differ by1ns.",
+      "fixed_control_trial": "Set actual exposure/gain before streaming, discard transient/unmatched captures, preserve each real frame SOF/sequence, and supply the integration duration derived from the active sensor settings. This reproduces the original algorithmic convention without inventing a measured optical offset.",
+      "do_not_double_apply": "Keep existing calibration XML TimeAlignment inside the original tracker. Do not add its200/204us offsets here or add native QTimer offset to the external BOOTTIME IMU branch."
+    }
+  },
+  "ownership": {
+    "userspace_can_proceed_now": [
+      "Implement the confirmed camera RPC and calibration-name encoding.",
+      "Implement real Y8 row packing and physical camera-identity mapping.",
+      "Implement frame-number propagation, synchronous buffer lifetime and the selected CPU/CVP mapping path.",
+      "Use already supported 500 Hz real IMU input as described in sensor-rate-contract.json."
+    ],
+    "kernel_dialogue_required": [
+      "C03: frame-associated SOF/EOF identity, genuine exposure-start relationship and exposure/gain/frame-length control effective-frame metadata.",
+      "C04/C05: verify actual stereo and four-camera synchronization with stable physical pairing.",
+      "I03-a: jointly establish camera/IMU BOOTTIME/MONOTONIC/QTimer relations and measured timing error.",
+      "F05 only for an observed buffer-sharing/cache ownership failure; full default CVP hardware acceleration separately requires the missing CVP KMD."
+    ],
+    "cannot_claim_yet": "Complete original six-DoF from camera input until actual synchronized frames, timing and valid tracking output are observed."
+  },
+  "artifacts": {
+    "original_qvr_dsp": {
+      "path": "build/xr-tracking-r1/stock/system/system/lib/rfsa/adsp/libqvr_dsp_driver_skel.so",
+      "sha256": "71022184524650e554cff0067f9e8787a1e88b0f80d3bff163aa9f2fcc462255"
+    },
+    "original_ap_stub": {
+      "path": "build/xr-openxr-research-r1/stock/system/lib/libqvr_cdsp_driver_stub.so",
+      "sha256": "9a8dd90226e9ad93d844cf1030ba9077b0001980d923a21ad53b1b44da259920"
+    },
+    "original_ap_service": {
+      "path": "build/xr-openxr-research-r1/stock/system/lib/libqvrservice.so",
+      "sha256": "f8b3b7582fe696c302ce1ab2a026ab13089f390d4011730733ddf395a257bbc7"
+    },
+    "selected_slim_metadata": {
+      "path": "build/xr-stock-tracking-r1/rate-camera/qvr-selected-slim-metadata.json",
+      "sha256": "1c75ae919d1ce5d6e69195b47ea392f150ce63f56968c4b389ace53f8baa7971"
+    },
+    "kernel_gates_snapshot": {
+      "path": "build/xr-stock-tracking-r1/rate-camera/kernel-gates-snapshot.txt",
+      "sha256": "7b90f6e1f76cc0679e27695f64c24589c885a73ae70f89dcce3fd0144f997fcf"
+    }
+  },
+  "limitations": [
+    "Static layout and argument flow only; no hardware frames were captured or submitted.",
+    "No large tracker cold import, new kernel code, runtime code edits or status changes.",
+    "Camera timing metadata names/units and the HAL3 Y8 skew selection are now recovered; new-kernel physical event equivalence and complete CPU/CVP buffer cache contract are not established by this static analysis."
+  ],
+  "rea_session": {
+    "port": 18764,
+    "native_binary_closed": true,
+    "server_stopped": true,
+    "close_evidence": "build/xr-stock-tracking-r1/rate-camera/close.json",
+    "timing_followup": {
+      "port": 18765,
+      "native_binary_closed": true,
+      "server_stopped": true,
+      "evidence_directory": "build/xr-stock-tracking-r1/camera-timing",
+      "close_evidence": [
+        "build/xr-stock-tracking-r1/camera-timing/service-close.json",
+        "build/xr-stock-tracking-r1/camera-timing/ov7251-tuning-close.json"
+      ],
+      "cleanup_evidence": "build/xr-stock-tracking-r1/camera-timing/cleanup.json"
+    },
+    "sof_producer_followup": {
+      "port": 18765,
+      "native_binary_closed": true,
+      "close_evidence": "build/xr-stock-tracking-r1/camera-sof/close.json",
+      "server_stopped": true,
+      "cleanup_evidence": "build/xr-stock-tracking-r1/camera-sof/cleanup.json"
+    }
+  },
+  "pixel_conversion_reference": {
+    "stock_a081_config": "trinity tracking and ctrl-tracking: frame_rdi_mode=true, frame_rdi_bit_depth=10, rdi_frame_format=raw16, default_frame_format=y8. The original A081 configuration is unpacked 16-bit storage of 10-bit sensor values, not packed Y10P.",
+    "raw16_to_y8": {
+      "function": "QVRServiceCamDeviceHAL3::ApplyGammaCropAndPixelSumRaw16Neon",
+      "elf_address": "0x0dcb18",
+      "rea_address": "0x0ecb18",
+      "default_formula": "For a valid 10-bit sample stored in a little-endian u16: y8 = max((u10 >> 2) - black_level_bias_u8, 0). With proven stock default gamma=1 and ov7251 tuning black_level_bias=0: y8 = u10 >> 2.",
+      "assembly": "REA0xecc3c vshrn right2, 0xecc40 vcgt.u8, 0xecc4c vsub.i8; full evidence raw16-assembly.json."
+    },
+    "packed_raw10_to_y8": {
+      "function": "QVRServiceCamDeviceHAL3::ApplyGammaCropAndPixelSumRaw10Neon",
+      "elf_address": "0x0dcce0",
+      "rea_address": "0x0ecce0",
+      "packing": "For each 5 input bytes b0..b4, four samples are (b0<<2)|(b4&3), (b1<<2)|((b4>>2)&3), (b2<<2)|((b4>>4)&3), (b3<<2)|(b4>>6).",
+      "default_formula": "With gamma=1 and black_level_bias=0, output b0,b1,b2,b3. This reproduces the stock converter's high-8 projection on this packing; it does not prove that the current V4L2 source uses this packing unless its negotiated format/bytesperline say so.",
+      "nondefault_gamma": "With a non-null gamma table, original code uses each reconstructed 10-bit value as the LUT index. Do not replace its gamma=1 null-LUT branch with floor(255*u10/1023), which can differ from u10>>2."
+    },
+    "gamma_and_black_level_defaults": {
+      "gamma": 1.0,
+      "gamma_evidence": "HAL3 constructor stores 0x3f800000 at this+0x6790. qvr_cam_device_param_t initializes gamma/black-level pattern vectors empty; trinity supplies no overrides. ProcessPixels selects a null LUT when gamma==1.0.",
+      "black_level_default_if_no_tuning": 0,
+      "black_level_source_when_tuning_loaded": "GetGammaBlackLevelUpdate prioritizes a nonzero per-frame configured pattern value, otherwise QVRServiceTuning::getBlackLevelBias reads tuning_data+0x24. Caller starts its local bias at 0.",
+      "ov7251_tuning_black_level": 0,
+      "tuning_evidence": "libqvrservice_ov7251_hvx_tuning.so LoadTuningData ELF0x1014 returns ELF0x2008; byte at ELF/file0x202c is 0. See ov7251-black-level.json.",
+      "runtime_limit": "These are the recovered default/configured paths, not an observation of live Android camera client overrides or the final provider actually loaded. No live gamma/black-level equality claim is made."
+    },
+    "integration_fields": [
+      "Negotiate and record GREY/Y10P/Y10, actual bytesperline and sizeimage; do not infer format from image dimensions.",
+      "Apply the selected 10-bit storage conversion row by row; skip source row padding and preserve the 640x480 calibrated image geometry.",
+      "Pack the two converted sensor images side by side per row according to the separately proven camera identity/pairing contract."
+    ],
+    "evidence_keys": [
+      "camera_pixels_and_pairing",
+      "camera_pixel_sync_defaults",
+      "camera_gamma_defaults",
+      "camera_configuration_defaults",
+      "camera_raw16_assembly",
+      "ov7251_tuning",
+      "ov7251_black_level",
+      "trinity_camera_settings"
+    ]
+  },
+  "original_pair_matching_reference": {
+    "candidate_search": {
+      "function": "QVRServiceCamDeviceHAL3Pair::SyncMatchFrames(int,QVRServiceCamDeviceHAL3*,_qvr_frame_t*,QVRServiceCamDeviceHAL3*,_qvr_frame_t**)",
+      "elf_address": "0x0ece6c",
+      "rea_address": "0x0fce6c",
+      "validity_prerequisites": "Both camera objects exist; source and candidate private frame+0x1c drop/invalid flag is zero; candidate frame number >=0.",
+      "time_key": "S(frame)=frame.start_of_exposure_boottime_ns + frame.exposure_ns. The original log calls this sofMs; this software name does not establish that a new CSI SOF interrupt has this physical meaning.",
+      "window": "abs(S(source)-S(candidate)) < min(floor(source.frame_duration_ns/2), floor(candidate.frame_duration_ns/2)); strict comparison, searches available buffers and returns the first qualifying candidate.",
+      "frame_number_rule": "Equality of camera frame numbers is not required. The original log explicitly records both frame numbers and their difference."
+    },
+    "final_sync_check": {
+      "function": "QVRServiceCamDeviceHAL3Pair::SyncMatchFrames(int,int,QVRServiceCamDeviceHAL3*,QVRServiceCamDeviceHAL3Pair*,_qvr_frame_t**,_qvr_frame_t**,_qvr_frame_t**)",
+      "elf_address": "0x0eb170",
+      "rea_address": "0x0fb170",
+      "tolerance_ns_default": 1000000,
+      "tolerance_evidence": "qvr_cam_device_param_t ctor ELF0xa341c sets u64 device+0x120=1000000; GetCameraStereoSyncTimeToleranceNs reads it; Pair::Init stores it at this+0x7918. trinity contains no stereo sync tolerance override.",
+      "reference_time": "Without reference pair R=S(main). With reference pair R=S(reference_pair)+configured_reference_offset_ns.",
+      "configured_reference_offset_ns_default": 0,
+      "rejection": "When the stock synchronization checks are enabled/armed, mark output invalid if max(abs(R-S(main)),abs(R-S(aux))) > tolerance_ns. Equality to tolerance is permitted. There are startup/FPS-control/property gates; the 1ms value must not be interpreted as a measured A081 skew.",
+      "exposure_gain_rule": "In the applicable RDI/manual branch, mark invalid on unequal main/aux exposure_ns or ISO gain; reference exposure/gain equality is also required when reference following is enabled. Treat matching actual settings as a userspace precondition rather than silently combining unequal exposures.",
+      "monotonicity": "A matched main frame that is not newer than last processed main fn is rejected; skipped newer main frames are counted/logged. Matching does not renumber the physical sensor frames."
+    },
+    "four_camera_flow": "The wrapper time-matches tracking A to tracking B and, when configured, to the ctrl-tracking reference pair using the same candidate search. trinity sets tracking_camera_stereo_sync_master=ctrl-tracking. SetupMetadataAndBuffers copies main-frame metadata and records the partner/reference frame numbers at +0x1a8. VRTrackerF can therefore send separate primary and auxiliary group frame numbers.",
+    "physical_identity_limit": "trinity hardware IDs 0,1 and 2,3 are source configuration names. They are not proof of current Linux video-node-to-optical-camera identity. The current kernel must establish physical IDs and the actual common capture event.",
+    "minimum_adapter_rule": "Prefer the measured common trigger/event identity from the new kernel. Retain actual sequence numbers, same-frame exposure metadata, measured group time residuals and drop invalid/unmatched sets. The stock half-period search is a candidate-selection heuristic, not permission to assign arbitrary independent frames one timestamp.",
+    "evidence_keys": [
+      "camera_pixels_and_pairing",
+      "camera_pixel_sync_defaults",
+      "camera_configuration_defaults",
+      "camera_pair_search_assembly",
+      "trinity_camera_settings"
+    ]
+  },
+  "sensor_orientation_reference": {
+    "status": "real_control_and_pixel_change_verified_original_values_restored",
+    "scope": "Only existing sensor flip CIDs before STREAMON; no software rotation or camera role change",
+    "slots": [
+      {
+        "slot": 0,
+        "bus": 20,
+        "phy": 5,
+        "stock_module": "com.qti.sensormodule.ofilm_ov7251_cam0.bin",
+        "stock_mode_registers": {
+          "0x3820": 68,
+          "0x3821": 4
+        },
+        "requested_controls": {
+          "horizontal_flip": 1,
+          "vertical_flip": 1
+        }
+      },
+      {
+        "slot": 1,
+        "bus": 21,
+        "phy": 4,
+        "stock_module": "com.qti.sensormodule.ofilm_ov7251_cam1.bin",
+        "stock_mode_registers": {
+          "0x3820": 68,
+          "0x3821": 4
+        },
+        "requested_controls": {
+          "horizontal_flip": 1,
+          "vertical_flip": 1
+        }
+      },
+      {
+        "slot": 2,
+        "bus": 22,
+        "phy": 2,
+        "stock_module": "com.qti.sensormodule.ofilm_ov7251_cam2.bin",
+        "stock_mode_registers": {
+          "0x3820": 64,
+          "0x3821": 0
+        },
+        "requested_controls": {
+          "horizontal_flip": 0,
+          "vertical_flip": 0
+        }
+      },
+      {
+        "slot": 3,
+        "bus": 23,
+        "phy": 3,
+        "stock_module": "com.qti.sensormodule.ofilm_ov7251_cam3.bin",
+        "stock_mode_registers": {
+          "0x3820": 68,
+          "0x3821": 4
+        },
+        "requested_controls": {
+          "horizontal_flip": 1,
+          "vertical_flip": 1
+        }
+      }
+    ],
+    "decoded_evidence": "reports/device/camera-debian-r1/stock/sensor-settings-decoded.json",
+    "decoded_sha256": "223fb6dc9e53c5a545f5346e287a37f51a5a120424548e871e1d5828a65da934",
+    "kernel_source": "kernel/drivers/media/i2c/ov7251.c",
+    "kernel_control_path": "HFLIP 0x3821 BIT(2), VFLIP 0x3820 BIT(2); mode table then ctrl_handler_setup then0x0100 STREAMING",
+    "raw_bin_offset_verification": "Kernel individually verified138 entries per BIN with correct per-file descriptors",
+    "low_feature_count_root_cause_proven": false,
+    "physical_lens_order_newly_proven": false,
+    "raw_bin_evidence": "reports/device/camera-orientation-r1/stock-mainline-orientation.json",
+    "runtime_evidence": "reports/device/xr-tracking-r1/stock-orientation-analysis.json",
+    "quality_result": "Still0/LOW_FEATURE_COUNT; no causal localization claim"
+  },
+  "same_placement_stock_baseline": {
+    "quality_state_warning": [
+      0,
+      4,
+      1
+    ],
+    "stock_active_positional_samples": 242,
+    "interpretation": "At unchanged physical placement, a running original positional tracker also continuously produces quality0/state4/LOW_FEATURE_COUNT. This symptom alone cannot identify a Debian/kernel/input-port defect.",
+    "does_not_relax_input_or_openxr_validity_gates": true
+  }
+}
