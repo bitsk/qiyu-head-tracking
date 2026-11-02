@@ -22,4 +22,4 @@ cmake --build build -j4
 
 ## 原厂运行资源
 
-DSP runtime 和型号默认 config6 已归档到独立私有 [qiyu-vendor](https://github.com/bitsk/qiyu-vendor) Release。通过 qiyu-rootfs 的 `tools/vendor.py fetch` 下载并校验后，缓存里的 `qvr/runtime/qcom/` 提供 DSP 文件，`qvr/config/config6.xml` 提供型号默认配置；rootfs 安装目标记录在 vendor.lock.json 中。每台设备的相机校准独立提供，不从其他设备的 persist 复制。正常使用不依赖整份原厂镜像。
+DSP runtime 和型号默认 config6 已归档到独立公开 [qiyu-vendor](https://github.com/bitsk/qiyu-vendor) Release。通过 qiyu-rootfs 的 `tools/vendor.py fetch` 下载并校验后，缓存里的 `qvr/runtime/qcom/` 提供 DSP 文件，`qvr/config/config6.xml` 提供型号默认配置；rootfs 安装目标记录在 vendor.lock.json 中。每台设备的相机校准独立提供，不从其他设备的 persist 复制。正常使用不依赖整份原厂镜像。
